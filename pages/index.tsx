@@ -980,7 +980,7 @@ export default function ResearchDashboard() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">
-                      Artigos Recomendados para "{selectedArea}"
+                      Artigos Recomendados para &quot;{selectedArea}&quot;
                     </h3>
                     <button onClick={resetRecommender} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm transition">
                       ← Nova Busca
