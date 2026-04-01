@@ -548,7 +548,7 @@ export default function ResearchDashboard() {
           >
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
               <h2 className="text-xl font-bold text-slate-100">
-                Papers of "{spectrumFilter.area}" ({AUTONOMY_LABELS[spectrumFilter.autonomy]})
+                Papers of &quot;{spectrumFilter.area}&quot; ({AUTONOMY_LABELS[spectrumFilter.autonomy]})
               </h2>
               <button onClick={() => setSpectrumFilter(null)} className="text-2xl text-slate-400 hover:text-white">&times;</button>
             </div>
