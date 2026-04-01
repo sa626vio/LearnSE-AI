@@ -1008,7 +1008,7 @@ export default function ResearchDashboard() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-slate-400 text-center py-8">Nenhum artigo encontrado para a área "{selectedArea}" com as subáreas selecionadas.</p>
+                    <p className="text-slate-400 text-center py-8">Nenhum artigo encontrado para a área &quot;{selectedArea}&quot; com as subáreas selecionadas.</p>
                   )}
                 </div>
               ) : 
