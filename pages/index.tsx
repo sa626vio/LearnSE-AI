@@ -864,9 +864,42 @@ export default function ResearchDashboard() {
                     <YAxis stroke="#94a3b8" />
                     <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
                     <Legend formatter={(value) => AUTONOMY_LABELS[value as Autonomy]} />
-                    <Bar dataKey="A" stackId="a" fill={AUTONOMY_COLORS.A} style={{ cursor: 'pointer' }} onClick={(data) => data.A > 0 && setPlotFilter({ year: data.year, autonomy: 'A' })} />
-                    <Bar dataKey="B" stackId="a" fill={AUTONOMY_COLORS.B} style={{ cursor: 'pointer' }} onClick={(data) => data.B > 0 && setPlotFilter({ year: data.year, autonomy: 'B' })} />
-                    <Bar dataKey="C" stackId="a" fill={AUTONOMY_COLORS.C} style={{ cursor: 'pointer' }} onClick={(data) => data.C > 0 && setPlotFilter({ year: data.year, autonomy: 'C' })} />
+                    <Bar
+                      dataKey="A"
+                      stackId="a"
+                      fill={AUTONOMY_COLORS.A}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data: unknown) => {
+                        const payload = (data as { payload?: { year: number; A?: number } }).payload;
+                        if (payload?.A && payload.A > 0) {
+                          setPlotFilter({ year: payload.year, autonomy: 'A' });
+                        }
+                      }}
+                    />
+                    <Bar
+                      dataKey="B"
+                      stackId="a"
+                      fill={AUTONOMY_COLORS.B}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data: unknown) => {
+                        const payload = (data as { payload?: { year: number; B?: number } }).payload;
+                        if (payload?.B && payload.B > 0) {
+                          setPlotFilter({ year: payload.year, autonomy: 'B' });
+                        }
+                      }}
+                    />
+                    <Bar
+                      dataKey="C"
+                      stackId="a"
+                      fill={AUTONOMY_COLORS.C}
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data: unknown) => {
+                        const payload = (data as { payload?: { year: number; C?: number } }).payload;
+                        if (payload?.C && payload.C > 0) {
+                          setPlotFilter({ year: payload.year, autonomy: 'C' });
+                        }
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
