@@ -756,14 +756,14 @@ export default function ResearchDashboard() {
                   {SWEBOK_AREAS.map((area) => (
                     <div key={area}>
                       <label className="flex items-center gap-2 text-sm font-medium">
-                        <input type="checkbox" className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" checked={(draft.swebokAreas || []).includes(area)} onChange={() => toggleArray("swebokAreas", area)} />
+                        <input type="checkbox" className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" checked={(draft.swebokAreas || []).includes(area)} onChange={() => toggleArray(area)} />
                         <span>{area}</span>
                       </label>
                       {(draft.swebokAreas || []).includes(area) && SUBAREAS[area] && (
                         <div className="pl-6 pt-1 pb-2 space-y-1">
                           {SUBAREAS[area].map(subarea => (
                             <label key={subarea} className="flex items-center gap-2 text-xs text-slate-300">
-                              <input type="checkbox" className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" checked={(draft.swebokAreas || []).includes(subarea)} onChange={() => toggleArray("swebokAreas", subarea)} />
+                              <input type="checkbox" className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" checked={(draft.swebokAreas || []).includes(subarea)} onChange={() => toggleArray(subarea)} />
                               <span>{subarea}</span>
                             </label>
                           ))}
