@@ -441,15 +441,17 @@ export default function ResearchDashboard() {
     cancelEditing(); // Reseta o rascunho e fecha o modal
   }
 
-  function toggleArray(field: keyof Article, value: string) {
-    const currentValues = (draft as any)[field] || [];
-    const arr = new Set<string>(currentValues);
+  function toggleArray(value: string) {
+    const currentValues = draft.swebokAreas || [];
+    const arr = new Set(currentValues);
+
     if (arr.has(value)) {
       arr.delete(value);
     } else {
       arr.add(value);
     }
-    setDraft((d) => ({ ...d, [field]: Array.from(arr) as any }));
+
+    update("swebokAreas", Array.from(arr));
   }
 
   // Função para converter o campo de métricas (que pode ser string ou array) para array
