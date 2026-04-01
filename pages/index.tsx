@@ -1018,7 +1018,7 @@ export default function ResearchDashboard() {
                     <button onClick={() => setSelectedArea(null)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm transition">
                       ← Go back
                     </button>
-                    <h3 className="text-lg font-semibold">Select the subareas of "{selectedArea}"</h3>
+                    <h3 className="text-lg font-semibold">Select the subareas of &quot;{selectedArea}&quot;</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
                     {(SUBAREAS[selectedArea] || []).map(subarea => (
