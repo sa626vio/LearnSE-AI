@@ -39,6 +39,7 @@ export interface Article {
   analysis: AnalysisType;
   resources: string;
   metrics: string[];
+  metricsUsage: string;
   results: string;
   benefitsChallenges: string;
   swebokAreas: string[];
