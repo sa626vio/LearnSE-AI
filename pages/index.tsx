@@ -228,7 +228,7 @@ function TutorialModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     },
     {
       title: "Autonomy Levels (Prompts) 🎨",
-      content: "Articles are categorized by how AI was used:\n• Free (Green): Students created their own prompts.\n• Fixed/Hybrid (Yellow): Guided by teacher scripts.\n• Used by Professors (Blue): AI used by the instructor.",
+      content: "Articles are categorized by how AI was used:\n• Free (Green): Students created their own prompts.\n• Fixed/Hybrid (Yellow): Guided by teacher scripts.\n• Used by Professors (Red): AI used by the instructor.",
       icon: "💡"
     },
     {
