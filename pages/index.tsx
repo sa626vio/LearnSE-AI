@@ -301,7 +301,7 @@ function TutorialModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   );
 }
 export default function ResearchDashboard() {
-  const [tab, setTab] = useState<"plot" | "ratings" | "spectrum" | "recommender">("plot");
+  const [tab, setTab] = useState<"plot" | "ratings" | "spectrum" | "recommender">("recommender");
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
   const [visibleRatingsCount, setVisibleRatingsCount] = useState(10);
