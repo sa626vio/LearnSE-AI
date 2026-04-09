@@ -1141,7 +1141,7 @@ export default function ResearchDashboard() {
                       ← New Search
                     </button>
                     <h3 className="text-lg font-semibold">
-                      Recommended Articles for "{selectedArea}"
+                      Recommended Articles for &quot;{selectedArea}&quot;
                     </h3>
                   </div>
 
