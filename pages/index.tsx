@@ -210,7 +210,96 @@ const INITIAL_ARTICLES: Article[] = Object.entries(FULL_ARTICLE_DETAILS).map(([t
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
+function TutorialModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [step, setStep] = React.useState(0);
 
+  // Reseta para o início sempre que o modal é aberto
+  React.useEffect(() => {
+    if (isOpen) setStep(0);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const steps = [
+    {
+      title: "Welcome to LearnSE AI! 🚀",
+      content: "This tool organizes studies on Generative AI in Software Engineering education. Let's explore its features to help your teaching practice.",
+      icon: "🎓"
+    },
+    {
+      title: "Autonomy Levels (Prompts) 🎨",
+      content: "Articles are categorized by how AI was used:\n• Free (Green): Students created their own prompts.\n• Fixed/Hybrid (Yellow): Guided by teacher scripts.\n• Used by Professors (Blue): AI used by the instructor.",
+      icon: "💡"
+    },
+    {
+      title: "SWEBOK v4 Framework 📖",
+      content: "The repository is based on SWEBOK v4, divided into 18 Knowledge Areas. Each main area contains specific subcategories to help you find precisely what you need.",
+      icon: "📚"
+    },
+    {
+      title: "Yearly Plot 📊",
+      content: "The 'Plot' tab shows the temporal evolution of studies. You can click on the colored bars to instantly see the list of articles from that specific year and category.",
+      icon: "📈"
+    },
+    {
+      title: "Ratings Table 📋",
+      content: "The 'Ratings' tab provides a detailed comparison of articles, showing the type of analysis (Qualitative/Quantitative) and how students interacted with the AI.",
+      icon: "🔍"
+    },
+    {
+      title: "Knowledge Spectrum 🌡️",
+      content: "The 'Spectrum' is a heatmap of SWEBOK areas. Click on any number within the grid to retrieve the specific articles corresponding to that area and autonomy level.",
+      icon: "🗺️"
+    },
+    {
+      title: "Paper Repository 📂",
+      content: "Use this for a guided search. Select a main SWEBOK area, then pick subareas to get tailored recommendations for your classroom activities.",
+      icon: "📂"
+    },
+    {
+      title: "Smart Keyword Search 🔍",
+      content: "Quickly find topics using the Keyword Filter. It searches through titles and educational objectives. You can also filter specifically by the GenAI Tool used (e.g., ChatGPT, Copilot).",
+      icon: "🔎"
+    },
+    {
+      title: "Contributing & Managing 🏗️",
+      content: "You have two ways to add articles:\n1. Local Addition: Use 'Add New Article Manually' to save papers directly to your browser's storage.\n2. Global Contribution: Click the green button at the bottom right to suggest papers for the official repository.",
+      icon: "➕"
+    },
+    {
+      title: "Need Some Help ❓",
+      content: "If you have any questions, you can click the question mark icon next to the 'LearnSE AI' title at any time to review this tutorial.",
+      icon: "✨"
+    }
+  ];
+
+  const next = () => (step < steps.length - 1 ? setStep(step + 1) : onClose());
+  const prev = () => (step > 0 ? setStep(step - 1) : null);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-8 max-w-lg w-full shadow-2xl relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+        <div className="text-center">
+          <div className="text-5xl mb-4">{steps[step].icon}</div>
+          <h2 className="text-2xl font-bold text-emerald-400 mb-4">{steps[step].title}</h2>
+          <p className="text-slate-300 whitespace-pre-line mb-8 leading-relaxed text-sm">{steps[step].content}</p>
+        </div>
+        <div className="flex justify-between items-center mt-6">
+          <button onClick={prev} className={`text-slate-400 hover:text-white ${step === 0 ? 'invisible' : ''}`}>Back</button>
+          <div className="flex gap-1">
+            {steps.map((_, i) => (
+              <div key={i} className={`h-1 w-2.5 rounded ${i === step ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+            ))}
+          </div>
+          <button onClick={next} className="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold transition text-sm">
+            {step === steps.length - 1 ? "Start Now" : "Next"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function ResearchDashboard() {
   const [tab, setTab] = useState<"plot" | "ratings" | "spectrum" | "recommender">("plot");
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
@@ -278,17 +367,32 @@ export default function ResearchDashboard() {
     }
   }, [articles]);
 
-  const [filterStudyType, setFilterStudyType] = useState<string>("");
+  useEffect(() => {
+    const hasSeen = localStorage.getItem("learnse_tutorial");
+    if (!hasSeen) {
+      setShowTutorial(true);
+      localStorage.setItem("learnse_tutorial", "true");
+    }
+  }, []);
+
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [filterTool, setFilterTool] = useState<string>("");
-  const [filterAudience, setFilterAudience] = useState<string>("");
 
   const filtered = useMemo(() => {
-    return articles.filter((a) =>
-      (!filterStudyType || a.studyType === filterStudyType) &&
-      (!filterTool || (a.genAITool && a.genAITool.toLowerCase().includes(filterTool.toLowerCase()))) &&
-      (!filterAudience || a.audience === filterAudience)
-    );
-  }, [articles, filterStudyType, filterTool, filterAudience]);
+  return articles.filter((a) => {
+    const searchLower = searchTerm.toLowerCase();
+    // Verifica se o termo de busca está no título ou nos objetivos educacionais
+    const matchesSearch = !searchTerm || 
+      a.title.toLowerCase().includes(searchLower) || 
+      (a.educationalObjectives && a.educationalObjectives.toLowerCase().includes(searchLower));
+
+    // Mantém o filtro de ferramenta (GenAI tool) funcionando em conjunto
+    const matchesTool = !filterTool || 
+      (a.genAITool && a.genAITool.toLowerCase().includes(filterTool.toLowerCase()));
+
+    return matchesSearch && matchesTool;
+  });
+}, [articles, searchTerm, filterTool]);
 
   const recommendedArticles = useMemo(() => {
     if (!selectedArea || selectedSubareas.length === 0) {
@@ -361,6 +465,7 @@ export default function ResearchDashboard() {
 
   // Estado de Rascunho para o novo formulário
   const [draft, setDraft] = useState<Partial<Article>>({});
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Função para resetar o rascunho para um estado inicial limpo
   function resetDraft() {
@@ -636,65 +741,62 @@ export default function ResearchDashboard() {
               {/* Campos Principais */}
               <label className="block">
                 <span className="text-slate-400">Title*</span>
-                <input className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.title || ""} onChange={(e) => update("title", e.target.value)} />
+                <input className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.title || ""} onChange={(e) => update("title", e.target.value)} />
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
                   <span className="text-slate-400">Authors*</span>
-                  <input className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.authors || ""} onChange={(e) => update("authors", e.target.value)} />
+                  <input className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.authors || ""} onChange={(e) => update("authors", e.target.value)} />
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Year*</span>
-                  <input type="number" className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.year || ""} onChange={(e) => update("year", parseInt(e.target.value, 10))} />
+                  <input type="number" className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.year || ""} onChange={(e) => update("year", parseInt(e.target.value, 10))} />
                 </label>
               </div>
               <label className="block">
                 <span className="text-slate-400">Source (Ex: SIGCSE 2024)</span>
-                <input className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.source || ""} onChange={(e) => update("source", e.target.value)} />
+                <input className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.source || ""} onChange={(e) => update("source", e.target.value)} />
               </label>
               <label className="block">
                 <span className="text-slate-400">DOI or Link</span>
-                <input className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.doiOrLink || ""} onChange={(e) => update("doiOrLink", e.target.value)} />
+                <input className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.doiOrLink || ""} onChange={(e) => update("doiOrLink", e.target.value)} />
               </label>
               
               {/* Campos de Texto Longos */}
               <label className="block">
                 <span className="text-slate-400">Educational objectives in software engineering</span>
-                <textarea className="mt-1 block w-full bg-slate-800 rounded px-3 py-2 h-24" value={draft.educationalObjectives || ""} onChange={(e) => update("educationalObjectives", e.target.value)} />
+                <textarea className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2 h-24" value={draft.educationalObjectives || ""} onChange={(e) => update("educationalObjectives", e.target.value)} />
               </label>
               <label className="block">
                 <span className="text-slate-400">How AI was employed</span>
-                <textarea className="mt-1 block w-full bg-slate-800 rounded px-3 py-2 h-24" value={draft.usedHow || ""} onChange={(e) => update("usedHow", e.target.value)} />
+                <textarea className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2 h-24" value={draft.usedHow || ""} onChange={(e) => update("usedHow", e.target.value)} />
               </label>
               <label className="block">
                 <span className="text-slate-400">Perception of benefits and challenges</span>
-                <textarea className="mt-1 block w-full bg-slate-800 rounded px-3 py-2 h-24" value={draft.benefitsChallenges || ""} onChange={(e) => update("benefitsChallenges", e.target.value)} />
+                <textarea className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2 h-24" value={draft.benefitsChallenges || ""} onChange={(e) => update("benefitsChallenges", e.target.value)} />
               </label>
               <label className="block">
                 <span className="text-slate-400">Results</span>
-                <textarea className="mt-1 block w-full bg-slate-800 rounded px-3 py-2 h-24" value={draft.results || ""} onChange={(e) => update("results", e.target.value)} />
+                <textarea className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2 h-24" value={draft.results || ""} onChange={(e) => update("results", e.target.value)} />
               </label>
               <label className="block">
                 <span className="text-slate-400">Metrics</span>
-                <input className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={getMetricsAsArray(draft.metrics).join(', ')} onChange={(e) => update("metrics", e.target.value.split(',').map(m => m.trim()))} />
+                <input className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={getMetricsAsArray(draft.metrics).join(', ')} onChange={(e) => update("metrics", e.target.value.split(',').map(m => m.trim()))} />
               </label>
-              
-      
               <label className="block">
                 <span className="text-slate-400">How the Metrics Were Used</span>
-                <textarea className="mt-1 block w-full bg-slate-800 rounded px-3 py-2 h-24" value={draft.metricsUsage || ""} onChange={(e) => update("metricsUsage", e.target.value)} />
+                <textarea className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2 h-24" value={draft.metricsUsage || ""} onChange={(e) => update("metricsUsage", e.target.value)} />
               </label>
               <label className="block">
                 <span className="text-slate-400">Extra materials or resources</span>
-                <textarea className="mt-1 block w-full bg-slate-800 rounded px-3 py-2 h-24" value={draft.resources || ""} onChange={(e) => update("resources", e.target.value)} />
+                <textarea className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2 h-24" value={draft.resources || ""} onChange={(e) => update("resources", e.target.value)} />
               </label>
-              
 
               {/* Campos de Seleção */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                 <label className="block">
+                <label className="block">
                   <span className="text-slate-400">Classificação*</span>
-                  <select className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.autonomy || "B"} onChange={(e) => update("autonomy", e.target.value as Autonomy)}>
+                  <select className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.autonomy || "B"} onChange={(e) => update("autonomy", e.target.value as Autonomy)}>
                     <option value="A">{AUTONOMY_LABELS.A}</option>
                     <option value="B">{AUTONOMY_LABELS.B}</option>
                     <option value="C">{AUTONOMY_LABELS.C}</option>
@@ -702,7 +804,7 @@ export default function ResearchDashboard() {
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Type of Interaction</span>
-                  <select className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.interactionType || "Hybrid"} onChange={(e) => update("interactionType", e.target.value as InteractionType)}>
+                  <select className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.interactionType || "Hybrid"} onChange={(e) => update("interactionType", e.target.value as InteractionType)}>
                     <option value="Free Prompts">Free Prompts</option>
                     <option value="Hybrid">Hybrid</option>
                     <option value="Fixed Prompts">Fixed Prompts</option>
@@ -710,12 +812,11 @@ export default function ResearchDashboard() {
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Generative AI Used</span>
-                  <input className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.genAITool || ""} onChange={(e) => update("genAITool", e.target.value)} />
+                  <input className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.genAITool || ""} onChange={(e) => update("genAITool", e.target.value)} />
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Type of Study</span>
-                  <select className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.studyType || ""} onChange={(e) => update("studyType", e.target.value as StudyType)}>
-                    
+                  <select className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.studyType || ""} onChange={(e) => update("studyType", e.target.value as StudyType)}>
                     <option value="Systematic Review/Mapping">Systematic Review/Mapping</option>
                     <option value="Experimental">Experimental</option>
                     <option value="Case Study">Case Study</option>
@@ -724,8 +825,7 @@ export default function ResearchDashboard() {
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Audience</span>
-                  <select className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.audience || ""} onChange={(e) => update("audience", e.target.value)}>
-                    
+                  <select className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.audience || ""} onChange={(e) => update("audience", e.target.value)}>
                     <option value="Undergraduate">Undergraduate</option>
                     <option value="Graduate">Graduate</option>
                     <option value="Professional">Professional</option>
@@ -733,7 +833,7 @@ export default function ResearchDashboard() {
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Type of Analysis</span>
-                  <select className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.analysis || "Mixed"} onChange={(e) => update("analysis", e.target.value as AnalysisType)}>
+                  <select className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.analysis || "Mixed"} onChange={(e) => update("analysis", e.target.value as AnalysisType)}>
                     <option value="Quantitative">Quantitative</option>
                     <option value="Mixed">Mixed</option>
                     <option value="Qualitative">Qualitative</option>
@@ -741,7 +841,7 @@ export default function ResearchDashboard() {
                 </label>
                 <label className="block">
                   <span className="text-slate-400">Used by Students?</span>
-                  <select className="mt-1 block w-full bg-slate-800 rounded px-3 py-2" value={draft.usedByStudents || "Not reported"} onChange={(e) => update("usedByStudents", e.target.value as UseByStudents)}>
+                  <select className="mt-1 block w-full bg-slate-800 text-slate-100 rounded px-3 py-2" value={draft.usedByStudents || "Not reported"} onChange={(e) => update("usedByStudents", e.target.value as UseByStudents)}>
                     <option value="Yes">Yes</option>
                     <option value="Partially">Partially</option>
                     <option value="No">No</option>
@@ -749,8 +849,7 @@ export default function ResearchDashboard() {
                   </select>
                 </label>
               </div>
-
-              {/* SWEBOK Areas */}
+              {/* Áreas SWEBOK (mantivemos igual pois elas já usam cores de destaque) */}
               <div>
                 <span className="text-slate-400">SWEBOK Areas</span>
                 <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-1 max-h-48 overflow-auto p-2 bg-slate-800 rounded">
@@ -758,14 +857,14 @@ export default function ResearchDashboard() {
                     <div key={area}>
                       <label className="flex items-center gap-2 text-sm font-medium">
                         <input type="checkbox" className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" checked={(draft.swebokAreas || []).includes(area)} onChange={() => toggleArray(area)} />
-                        <span>{area}</span>
+                        <span className="text-slate-100">{area}</span>
                       </label>
                       {(draft.swebokAreas || []).includes(area) && SUBAREAS[area] && (
                         <div className="pl-6 pt-1 pb-2 space-y-1">
                           {SUBAREAS[area].map(subarea => (
                             <label key={subarea} className="flex items-center gap-2 text-xs text-slate-300">
                               <input type="checkbox" className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" checked={(draft.swebokAreas || []).includes(subarea)} onChange={() => toggleArray(subarea)} />
-                              <span>{subarea}</span>
+                              <span className="text-slate-200">{subarea}</span>
                             </label>
                           ))}
                         </div>
@@ -791,7 +890,16 @@ export default function ResearchDashboard() {
       {/* --- LAYOUT PRINCIPAL DA PÁGINA --- */}
       <div className="min-h-screen flex bg-slate-950 text-slate-100">
         <aside className="w-72 border-r border-slate-800 p-6 space-y-6 fixed left-0 top-0 h-full overflow-y-auto">
-          <h1 className="text-2xl font-semibold tracking-tight">LearnSE AI</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold tracking-tight">LearnSE AI</h1>
+            <button 
+              onClick={() => setShowTutorial(true)}
+              className="p-1 hover:bg-slate-800 rounded-full transition text-slate-400 hover:text-emerald-400"
+              title="Ver Tutorial"
+            >
+              ❓
+            </button>
+          </div>
           
           <div className="space-y-2">
             <div className="text-xs uppercase text-slate-400">Navigation</div>
@@ -803,21 +911,36 @@ export default function ResearchDashboard() {
 
           <div className="space-y-3">
             <div className="text-xs uppercase text-slate-400">Filters</div>
-            <select className="w-full bg-slate-900 rounded px-3 py-2" value={filterStudyType} onChange={(e) => setFilterStudyType(e.target.value)}>
-              <option value="">Study Type</option>
-              <option>Systematic Review/Mapping</option>
-              <option>Experimental</option>
-              <option>Case Study</option>
-              <option>Other</option>
-            </select>
-            <input className="w-full bg-slate-900 rounded px-3 py-2" placeholder="GenAI tool (e.g., ChatGPT)" value={filterTool} onChange={(e) => setFilterTool(e.target.value)} />
-            <select className="w-full bg-slate-700 rounded px-3 py-2" value={filterAudience} onChange={(e) => setFilterAudience(e.target.value)}>
-              <option value="">Audience</option>
-              <option>Undergraduate</option>
-              <option>Graduate</option>
-              <option>Professional</option>
-            </select>
-             <div className="text-sm text-slate-400">Records: <span className="text-slate-200 font-medium">{filtered.length}</span> / {articles.length}</div>
+
+            {/* Nova Barra de Busca por Palavra-chave */}
+            <div className="relative">
+              <input 
+                className="w-full bg-slate-900 text-slate-100 rounded px-3 py-2 text-sm border border-slate-700 focus:border-emerald-500 outline-none" 
+                placeholder="Search by title or description..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 top-2 text-slate-500 hover:text-slate-300"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+
+            {/* Mantivemos o filtro de ferramenta pois ele é bem específico para IA */}
+            <input 
+              className="w-full bg-slate-900 text-slate-100 rounded px-3 py-2 text-sm border border-slate-700 focus:border-emerald-500 outline-none" 
+              placeholder="Filter by GenAI tool..." 
+              value={filterTool} 
+              onChange={(e) => setFilterTool(e.target.value)} 
+            />
+
+            <div className="text-sm text-slate-400">
+              Records: <span className="text-slate-200 font-medium">{filtered.length}</span> / {articles.length}
+            </div>
           </div>
 
           {/* BOTÃO ATUALIZADO PARA ABRIR O MODAL DE FORMULÁRIO */}
@@ -1012,13 +1135,14 @@ export default function ResearchDashboard() {
             <section className="bg-slate-900 rounded-2xl p-6 shadow-lg">
               {selectedArea && selectedSubareas.length > 0 ? (
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">
-                      Artigos Recomendados para &quot;{selectedArea}&quot;
-                    </h3>
-                    <button onClick={resetRecommender} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm transition">
-                      ← Nova Busca
+                  {/* Cabeçalho ajustado: botão à esquerda e texto em inglês */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <button onClick={resetRecommender} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm transition flex items-center gap-2">
+                      ← New Search
                     </button>
+                    <h3 className="text-lg font-semibold">
+                      Recommended Articles for "{selectedArea}"
+                    </h3>
                   </div>
 
                   {recommendedArticles.length > 0 ? (
@@ -1160,8 +1284,7 @@ export default function ResearchDashboard() {
       >
         Think an article is missing? Let us know!
       </a>
-      
+      <TutorialModal isOpen={showTutorial} onClose={() => setShowTutorial(false)} />
     </>
   );
 }
-
