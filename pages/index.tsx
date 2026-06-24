@@ -406,8 +406,8 @@ export default function ResearchDashboard() {
       try {
         const parsedArticles = JSON.parse(saved);
         if (parsedArticles && parsedArticles.length > 0) {
-          const migrated = parsedArticles.map((art: any) => {
-            if (art.autonomy === "B") {
+          const migrated = parsedArticles.map((art: Article) => {
+            if (art.autonomy === ("B" as Autonomy)) {
               const textInteraction = (art.interactionType || "").toLowerCase();
               if (textInteraction.includes("fixed")) {
                 return { ...art, autonomy: "D" };
