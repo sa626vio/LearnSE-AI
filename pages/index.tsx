@@ -473,12 +473,13 @@ export default function ResearchDashboard() {
   }, [selectedArea, selectedSubareas, articles]);
 
   const spectrumFilteredArticles = useMemo(() => {
-    if (!spectrumFilter) return [];
-    return articles.filter(article => 
-      article.autonomy === spectrumFilter.autonomy &&
-      (article.swebokAreas || []).includes(spectrumFilter.area)
-    );
-  }, [spectrumFilter, articles]);
+  if (!spectrumFilter) return [];
+
+  return filtered.filter(article => 
+    article.autonomy === spectrumFilter.autonomy &&
+    (article.swebokAreas || []).includes(spectrumFilter.area)
+  );
+}, [spectrumFilter, filtered]);
 
   const plotFilteredArticles = useMemo(() => {
     if (!plotFilter) return [];
