@@ -273,6 +273,212 @@ function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+type YearBucket = {
+  year: number;
+  A: number;
+  B: number;
+  C: number;
+  D: number;
+};
+
+type HeatCount = {
+  area: string;
+  A: number;
+  B: number;
+  C: number;
+  D: number;
+};
+
+const AUTONOMY_ORDER: Autonomy[] = ["A", "B", "D", "C"];
+
+function computeYearBuckets(list: Article[]): YearBucket[] {
+  const map: Record<number, YearBucket> = {};
+
+  for (const article of list) {
+    if (!map[article.year]) {
+      map[article.year] = { year: article.year, A: 0, B: 0, C: 0, D: 0 };
+    }
+    map[article.year][article.autonomy] += 1;
+  }
+
+  return Object.values(map).sort((a, b) => a.year - b.year);
+}
+
+function computeHeatCounts(list: Article[]): HeatCount[] {
+  const base: HeatCount[] = SWEBOK_AREAS.map((area) => ({ area, A: 0, B: 0, C: 0, D: 0 }));
+  const index: Record<string, number> = Object.fromEntries(base.map((row, i) => [row.area, i]));
+
+  for (const article of list) {
+    for (const area of article.swebokAreas || []) {
+      const i = index[area];
+      if (i !== undefined) {
+        base[i][article.autonomy] += 1;
+      }
+    }
+  }
+
+  return base;
+}
+
+function YearlyAutonomyChart({
+  data,
+  onBarClick,
+}: {
+  data: YearBucket[];
+  onBarClick: (year: number, autonomy: Autonomy) => void;
+}) {
+  return (
+    <div className="w-full h-[420px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+          <CartesianGrid stroke="#1f2937" />
+          <XAxis dataKey="year" stroke="#94a3b8" />
+          <YAxis stroke="#94a3b8" />
+          <Tooltip
+            contentStyle={{ background: "#0f172a", border: "1px solid #334155" }}
+            formatter={(value, name) => [value, AUTONOMY_LABELS[name as Autonomy] ?? String(name ?? "")]}
+          />
+          <Legend formatter={(value) => AUTONOMY_LABELS[value as Autonomy] ?? String(value)} />
+          {AUTONOMY_ORDER.map((autonomy) => (
+            <Bar
+              key={autonomy}
+              dataKey={autonomy}
+              stackId="a"
+              fill={AUTONOMY_COLORS[autonomy]}
+              style={{ cursor: "pointer" }}
+              onClick={(entry: unknown) => {
+                const payload = (entry as { payload?: YearBucket }).payload;
+                if (payload && payload[autonomy] > 0) {
+                  onBarClick(payload.year, autonomy);
+                }
+              }}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function SwebokSpectrumTable({
+  data,
+  onCellClick,
+}: {
+  data: HeatCount[];
+  onCellClick: (area: string, autonomy: Autonomy) => void;
+}) {
+  return (
+    <div className="overflow-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th className="text-left p-2 sticky left-0 bg-slate-900">SWEBOK Area</th>
+            {AUTONOMY_ORDER.map((key) => (
+              <th key={key} className="p-2 w-1/6 text-center">{AUTONOMY_LABELS[key]}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => {
+            const max = Math.max(row.A, row.B, row.C, row.D, 1);
+            return (
+              <tr key={row.area} className="border-t border-slate-800">
+                <td className="p-2 sticky left-0 bg-slate-900 whitespace-nowrap pr-6">{row.area}</td>
+                {AUTONOMY_ORDER.map((autonomy) => {
+                  const value = row[autonomy];
+                  const intensity = value / max;
+                  const color = AUTONOMY_COLORS[autonomy];
+                  return (
+                    <td key={autonomy} className="p-2">
+                      <div
+                        onClick={() => value > 0 && onCellClick(row.area, autonomy)}
+                        className={classNames(
+                          "h-10 rounded-md grid place-items-center text-slate-900 font-semibold relative",
+                          value > 0 && "cursor-pointer hover:ring-2 hover:ring-white/50 transition"
+                        )}
+                        style={{ background: `${color}33` }}
+                        title={value > 0 ? `Clique para ver os ${value} artigos` : "Nenhum artigo"}
+                      >
+                        <div className="w-full h-full rounded" style={{ background: color, opacity: 0.25 + intensity * 0.75 }} />
+                        <span className="absolute text-slate-200">{value}</span>
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RatingsTable({
+  articles,
+  onRowClick,
+  visibleCount,
+  onToggleVisibility,
+}: {
+  articles: Article[];
+  onRowClick: (article: Article) => void;
+  visibleCount?: number;
+  onToggleVisibility?: () => void;
+}) {
+  const visibleArticles = visibleCount === undefined ? articles : articles.slice(0, visibleCount);
+
+  return (
+    <>
+      <div className="overflow-y-auto max-h-[60vh]">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              <th className="p-2 text-left sticky top-0 bg-slate-900 z-10">Article</th>
+              <th className="p-2 text-center sticky top-0 bg-slate-900 w-1/5">Autonomy</th>
+              <th className="p-2 text-center sticky top-0 bg-slate-900">Interaction</th>
+              <th className="p-2 text-center sticky top-0 bg-slate-900">Analysis</th>
+              <th className="p-2 text-center sticky top-0 bg-slate-900">Used by Students</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleArticles.map((article) => (
+              <tr
+                key={article.id}
+                className="border-t border-slate-700 hover:bg-slate-800/50 transition cursor-pointer"
+                onClick={() => onRowClick(article)}
+              >
+                <td className="p-2 text-left">
+                  <div className="font-medium">{article.title}</div>
+                  <div className="text-xs text-slate-400">{article.authors} ({article.year})</div>
+                </td>
+                <td className="p-2 text-center">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full" style={{ background: AUTONOMY_COLORS[article.autonomy] }} />
+                    {AUTONOMY_LABELS[article.autonomy]}
+                  </span>
+                </td>
+                <td className="p-2 text-center">{article.interactionType}</td>
+                <td className="p-2 text-center">{article.analysis}</td>
+                <td className="p-2 text-center">{article.usedByStudents}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {articles.length > 10 && visibleCount !== undefined && onToggleVisibility && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={onToggleVisibility}
+            className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm"
+          >
+            {visibleCount >= articles.length ? "Show Less" : "Show All"}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function TutorialModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [step, setStep] = React.useState(0);
 
@@ -376,6 +582,8 @@ export default function ResearchDashboard() {
   const [tempSelection, setTempSelection] = useState<Set<string>>(new Set());
   const [spectrumFilter, setSpectrumFilter] = useState<{ area: string; autonomy: Autonomy } | null>(null);
   const [plotFilter, setPlotFilter] = useState<{ year: number; autonomy: Autonomy } | null>(null);
+  const [recSpectrumFilter, setRecSpectrumFilter] = useState<{ area: string; autonomy: Autonomy } | null>(null);
+  const [recPlotFilter, setRecPlotFilter] = useState<{ year: number; autonomy: Autonomy } | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filterTool, setFilterTool] = useState<string>("");
   const [draft, setDraft] = useState<Partial<Article>>({});
@@ -403,6 +611,8 @@ export default function ResearchDashboard() {
     setSelectedArea(null);
     setSelectedSubareas([]);
     setTempSelection(new Set());
+    setRecPlotFilter(null);
+    setRecSpectrumFilter(null);
   }
 
   useEffect(() => {
@@ -473,13 +683,13 @@ export default function ResearchDashboard() {
   }, [selectedArea, selectedSubareas, articles]);
 
   const spectrumFilteredArticles = useMemo(() => {
-  if (!spectrumFilter) return [];
+    if (!spectrumFilter) return [];
 
-  return filtered.filter(article => 
-    article.autonomy === spectrumFilter.autonomy &&
-    (article.swebokAreas || []).includes(spectrumFilter.area)
-  );
-}, [spectrumFilter, filtered]);
+    return filtered.filter(article =>
+      article.autonomy === spectrumFilter.autonomy &&
+      (article.swebokAreas || []).includes(spectrumFilter.area)
+    );
+  }, [spectrumFilter, filtered]);
 
   const plotFilteredArticles = useMemo(() => {
     if (!plotFilter) return [];
@@ -488,6 +698,24 @@ export default function ResearchDashboard() {
       article.autonomy === plotFilter.autonomy
     );
   }, [plotFilter, filtered]);
+
+  const recSpectrumFilteredArticles = useMemo(() => {
+    if (!recSpectrumFilter) return [];
+
+    return recommendedArticles.filter(article =>
+      article.autonomy === recSpectrumFilter.autonomy &&
+      (article.swebokAreas || []).includes(recSpectrumFilter.area)
+    );
+  }, [recSpectrumFilter, recommendedArticles]);
+
+  const recPlotFilteredArticles = useMemo(() => {
+    if (!recPlotFilter) return [];
+
+    return recommendedArticles.filter(article =>
+      article.year === recPlotFilter.year &&
+      article.autonomy === recPlotFilter.autonomy
+    );
+  }, [recPlotFilter, recommendedArticles]);
 
   const mainAreaCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -505,30 +733,10 @@ export default function ResearchDashboard() {
     return counts;
   }, [articles]);
 
-  const yearBuckets = useMemo(() => {
-    const map: Record<number, { year: number; A: number; B: number; C: number; D: number }> = {};
-    for (const a of filtered) {
-      if (!map[a.year]) map[a.year] = { year: a.year, A: 0, B: 0, C: 0, D: 0 };
-      map[a.year][a.autonomy] += 1;
-    }
-    return Object.values(map).sort((x, y) => x.year - y.year);
-  }, [filtered]);
-
-  const heatCounts = useMemo(() => {
-    const base = SWEBOK_AREAS.map((area) => ({ area, A: 0, B: 0, C: 0, D: 0 }));
-    const index = Object.fromEntries(base.map((r, i) => [r.area, i]));
-    for (const a of filtered) {
-      if (a.swebokAreas) {
-        for (const area of a.swebokAreas) {
-          const i = index[area];
-          if (i !== undefined) {
-            base[i][a.autonomy] += 1;
-          }
-        }
-      }
-    }
-    return base;
-  }, [filtered]);
+  const yearBuckets = useMemo(() => computeYearBuckets(filtered), [filtered]);
+  const heatCounts = useMemo(() => computeHeatCounts(filtered), [filtered]);
+  const recommendedYearBuckets = useMemo(() => computeYearBuckets(recommendedArticles), [recommendedArticles]);
+  const recommendedHeatCounts = useMemo(() => computeHeatCounts(recommendedArticles), [recommendedArticles]);
 
   function resetDraft() {
     setDraft({
@@ -758,6 +966,86 @@ export default function ResearchDashboard() {
                     className="bg-slate-800/50 p-4 rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
                     onClick={() => {
                       setPlotFilter(null);
+                      setSelectedArticleForDetails(article);
+                    }}
+                  >
+                    <h4 className="font-semibold text-slate-100">{article.title}</h4>
+                    <p className="text-xs text-slate-400 mt-1">{article.authors} ({article.year})</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-400">Nenhum artigo encontrado.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL DO PLOT DOS ARTIGOS RECOMENDADOS --- */}
+      {recPlotFilter && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setRecPlotFilter(null)}
+        >
+          <div
+            className="bg-slate-800 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              <h2 className="text-xl font-bold text-slate-100">
+                Recommended papers of {recPlotFilter.year} ({AUTONOMY_LABELS[recPlotFilter.autonomy]})
+              </h2>
+              <button onClick={() => setRecPlotFilter(null)} className="text-2xl text-slate-400 hover:text-white">&times;</button>
+            </div>
+
+            <div className="overflow-y-auto space-y-3">
+              {recPlotFilteredArticles.length > 0 ? (
+                recPlotFilteredArticles.map(article => (
+                  <div
+                    key={article.id}
+                    className="bg-slate-800/50 p-4 rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
+                    onClick={() => {
+                      setRecPlotFilter(null);
+                      setSelectedArticleForDetails(article);
+                    }}
+                  >
+                    <h4 className="font-semibold text-slate-100">{article.title}</h4>
+                    <p className="text-xs text-slate-400 mt-1">{article.authors} ({article.year})</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-400">Nenhum artigo encontrado.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL DO SPECTRUM DOS ARTIGOS RECOMENDADOS --- */}
+      {recSpectrumFilter && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setRecSpectrumFilter(null)}
+        >
+          <div
+            className="bg-slate-800 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              <h2 className="text-xl font-bold text-slate-100">
+                Recommended papers of &quot;{recSpectrumFilter.area}&quot; ({AUTONOMY_LABELS[recSpectrumFilter.autonomy]})
+              </h2>
+              <button onClick={() => setRecSpectrumFilter(null)} className="text-2xl text-slate-400 hover:text-white">&times;</button>
+            </div>
+
+            <div className="overflow-y-auto space-y-3">
+              {recSpectrumFilteredArticles.length > 0 ? (
+                recSpectrumFilteredArticles.map(article => (
+                  <div
+                    key={article.id}
+                    className="bg-slate-800/50 p-4 rounded-lg hover:bg-slate-700/50 transition cursor-pointer"
+                    onClick={() => {
+                      setRecSpectrumFilter(null);
                       setSelectedArticleForDetails(article);
                     }}
                   >
@@ -1024,156 +1312,33 @@ export default function ResearchDashboard() {
 
           {tab === "plot" && (
             <section className="bg-slate-900 rounded-2xl p-6 shadow-lg">
-              <div className="w-full h-[420px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={yearBuckets}>
-                    <CartesianGrid stroke="#1f2937" />
-                    <XAxis dataKey="year" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip 
-                      contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} 
-                      formatter={(value, name) => [value, AUTONOMY_LABELS[name as Autonomy]]} 
-                    />
-                    <Legend formatter={(value) => AUTONOMY_LABELS[value as Autonomy]} />
-                    <Bar
-                      dataKey="A"
-                      stackId="a"
-                      fill={AUTONOMY_COLORS.A}
-                      style={{ cursor: 'pointer' }}
-                      onClick={(data: unknown) => {
-                        const payload = (data as { payload?: { year: number; A?: number } }).payload;
-                        if (payload?.A && payload.A > 0) setPlotFilter({ year: payload.year, autonomy: 'A' });
-                      }}
-                    />
-                    <Bar
-                      dataKey="B"
-                      stackId="a"
-                      fill={AUTONOMY_COLORS.B}
-                      style={{ cursor: 'pointer' }}
-                      onClick={(data: unknown) => {
-                        const payload = (data as { payload?: { year: number; B?: number } }).payload;
-                        if (payload?.B && payload.B > 0) setPlotFilter({ year: payload.year, autonomy: 'B' });
-                      }}
-                    />
-                    <Bar
-                      dataKey="D"
-                      stackId="a"
-                      fill={AUTONOMY_COLORS.D}
-                      style={{ cursor: 'pointer' }}
-                      onClick={(data: unknown) => {
-                        const payload = (data as { payload?: { year: number; D?: number } }).payload;
-                        if (payload?.D && payload.D > 0) setPlotFilter({ year: payload.year, autonomy: 'D' });
-                      }}
-                    />
-                    <Bar
-                      dataKey="C"
-                      stackId="a"
-                      fill={AUTONOMY_COLORS.C}
-                      style={{ cursor: 'pointer' }}
-                      onClick={(data: unknown) => {
-                        const payload = (data as { payload?: { year: number; C?: number } }).payload;
-                        if (payload?.C && payload.C > 0) setPlotFilter({ year: payload.year, autonomy: 'C' });
-                      }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <YearlyAutonomyChart
+                data={yearBuckets}
+                onBarClick={(year, autonomy) => setPlotFilter({ year, autonomy })}
+              />
             </section>
           )}
 
           {tab === "ratings" && (
             <section className="bg-slate-900 rounded-2xl p-6 shadow-lg">
               <h3 className="text-lg font-semibold mb-4">Article Ratings Overview</h3>
-              <div className="overflow-y-auto max-h-[60vh]">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th className="p-2 text-left sticky top-0 bg-slate-900 z-10">Article</th>
-                      <th className="p-2 text-center sticky top-0 bg-slate-900 w-1/5">Autonomy</th>
-                      <th className="p-2 text-center sticky top-0 bg-slate-900">Interaction</th>
-                      <th className="p-2 text-center sticky top-0 bg-slate-900">Analysis</th>
-                      <th className="p-2 text-center sticky top-0 bg-slate-900">Used by Students</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.slice(0, visibleRatingsCount).map((article) => (
-                      <tr key={article.id} className="border-t border-slate-700 hover:bg-slate-800/50 transition cursor-pointer" onClick={() => setSelectedArticleForDetails(article)}>
-                        <td className="p-2 text-left">
-                          <div className="font-medium">{article.title}</div>
-                          <div className="text-xs text-slate-400">{article.authors} ({article.year})</div>
-                        </td>
-                        <td className="p-2 text-center">
-                          <span className="inline-flex items-center gap-1">
-                            <span className="w-3 h-3 rounded-full" style={{ background: AUTONOMY_COLORS[article.autonomy] }} />
-                            {AUTONOMY_LABELS[article.autonomy]}
-                          </span>
-                        </td>
-                        <td className="p-2 text-center">{article.interactionType}</td>
-                        <td className="p-2 text-center">{article.analysis}</td>
-                        <td className="p-2 text-center">{article.usedByStudents}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-               {filtered.length > 10 && (
-                <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={() => visibleRatingsCount >= filtered.length ? setVisibleRatingsCount(10) : setVisibleRatingsCount(filtered.length)}
-                    className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm"
-                  >
-                    {visibleRatingsCount >= filtered.length ? 'Show Less' : 'Show All'}
-                  </button>
-                </div>
-              )}
+              <RatingsTable
+                articles={filtered}
+                onRowClick={setSelectedArticleForDetails}
+                visibleCount={visibleRatingsCount}
+                onToggleVisibility={() =>
+                  setVisibleRatingsCount(visibleRatingsCount >= filtered.length ? 10 : filtered.length)
+                }
+              />
             </section>
           )}
 
           {tab === "spectrum" && (
             <section className="bg-slate-900 rounded-2xl p-6 shadow-lg">
-               <div className="overflow-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th className="text-left p-2 sticky left-0 bg-slate-900">SWEBOK Area</th>
-                      {(["A", "B", "D", "C"] as Autonomy[]).map(key => (
-                        <th key={key} className="p-2 w-1/6 text-center">{AUTONOMY_LABELS[key]}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {heatCounts.map((row) => {
-                      const max = Math.max(row.A, row.B, row.C, row.D, 1);
-                      return (
-                        <tr key={row.area} className="border-t border-slate-800">
-                          <td className="p-2 sticky left-0 bg-slate-900 whitespace-nowrap pr-6">{row.area}</td>
-                          {(["A", "B", "D", "C"] as const).map((k) => {
-                            const v = row[k] as number;
-                            const intensity = v / max;
-                            const color = AUTONOMY_COLORS[k];
-                            return (
-                              <td key={k} className="p-2">
-                                <div
-                                  onClick={() => v > 0 && setSpectrumFilter({ area: row.area, autonomy: k as Autonomy })}
-                                  className={classNames(
-                                    "h-10 rounded-md grid place-items-center text-slate-900 font-semibold relative",
-                                    v > 0 && "cursor-pointer hover:ring-2 hover:ring-white/50 transition"
-                                  )}
-                                  style={{ background: `${color}33` }}
-                                  title={v > 0 ? `Clique para ver os ${v} artigos` : 'Nenhum artigo'}
-                                >
-                                  <div className="w-full h-full rounded" style={{ background: color, opacity: 0.25 + intensity * 0.75 }} />
-                                  <span className="absolute text-slate-200">{v}</span>
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <SwebokSpectrumTable
+                data={heatCounts}
+                onCellClick={(area, autonomy) => setSpectrumFilter({ area, autonomy })}
+              />
             </section>
           )}
           
@@ -1191,25 +1356,57 @@ export default function ResearchDashboard() {
                   </div>
 
                   {recommendedArticles.length > 0 ? (
-                    <div className="space-y-4">
-                      {recommendedArticles.map(art => (
-                        <div key={art.id} className="bg-slate-800/50 p-4 rounded-lg hover:bg-slate-700/50 transition cursor-pointer" onClick={() => setSelectedArticleForDetails(art)}>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-semibold text-base text-slate-100">{art.title}</h4>
-                              <p className="text-xs text-slate-400 mt-1">{art.authors} ({art.year})</p>
+                    <>
+                      <div className="space-y-4">
+                        {recommendedArticles.map(art => (
+                          <div key={art.id} className="bg-slate-800/50 p-4 rounded-lg hover:bg-slate-700/50 transition cursor-pointer" onClick={() => setSelectedArticleForDetails(art)}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-semibold text-base text-slate-100">{art.title}</h4>
+                                <p className="text-xs text-slate-400 mt-1">{art.authors} ({art.year})</p>
+                              </div>
+                              <span className="flex-shrink-0 ml-4 inline-flex items-center gap-2 text-sm font-bold px-2 py-1 rounded" style={{ background: `${AUTONOMY_COLORS[art.autonomy]}33`, color: AUTONOMY_COLORS[art.autonomy]}}>
+                                <span className="w-2 h-2 rounded-full" style={{ background: AUTONOMY_COLORS[art.autonomy] }} />
+                                {AUTONOMY_LABELS[art.autonomy]}
+                              </span>
                             </div>
-                            <span className="flex-shrink-0 ml-4 inline-flex items-center gap-2 text-sm font-bold px-2 py-1 rounded" style={{ background: `${AUTONOMY_COLORS[art.autonomy]}33`, color: AUTONOMY_COLORS[art.autonomy]}}>
-                              <span className="w-2 h-2 rounded-full" style={{ background: AUTONOMY_COLORS[art.autonomy] }} />
-                              {AUTONOMY_LABELS[art.autonomy]}
-                            </span>
+                            <p className="text-sm text-slate-300 mt-2">
+                              {art.educationalObjectives || art.results}
+                            </p>
                           </div>
-                          <p className="text-sm text-slate-300 mt-2">
-                            {art.educationalObjectives || art.results}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+
+                      <section className="mt-8 bg-slate-900 rounded-2xl p-6 shadow-lg border border-slate-800">
+                        <h3 className="text-lg font-semibold mb-4">
+                          Distribuição por Ano — &quot;{selectedArea}&quot;
+                        </h3>
+                        <YearlyAutonomyChart
+                          data={recommendedYearBuckets}
+                          onBarClick={(year, autonomy) => setRecPlotFilter({ year, autonomy })}
+                        />
+                      </section>
+
+                      <section className="mt-8 bg-slate-900 rounded-2xl p-6 shadow-lg border border-slate-800">
+                        <h3 className="text-lg font-semibold mb-4">
+                          Spectrum SWEBOK — &quot;{selectedArea}&quot;
+                        </h3>
+                        <SwebokSpectrumTable
+                          data={recommendedHeatCounts}
+                          onCellClick={(area, autonomy) => setRecSpectrumFilter({ area, autonomy })}
+                        />
+                      </section>
+
+                      <section className="mt-8 bg-slate-900 rounded-2xl p-6 shadow-lg border border-slate-800">
+                        <h3 className="text-lg font-semibold mb-4">
+                          Ratings — &quot;{selectedArea}&quot;
+                        </h3>
+                        <RatingsTable
+                          articles={recommendedArticles}
+                          onRowClick={setSelectedArticleForDetails}
+                        />
+                      </section>
+                    </>
                   ) : (
                     <p className="text-slate-400 text-center py-8">No articles found for the &quot;{selectedArea}&quot; area with the selected sub-areas.</p>
                   )}
@@ -1240,10 +1437,32 @@ export default function ResearchDashboard() {
                     return (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
                         {activeSubareas.map(subarea => (
-                          <label key={subarea} className="flex items-center gap-2 p-3 bg-slate-800 rounded-md hover:bg-slate-700 cursor-pointer transition">
-                            <input type="checkbox" checked={tempSelection.has(subarea)} onChange={() => toggleTempSelection(subarea)} className="w-4 h-4 rounded text-emerald-500 bg-slate-700 border-slate-600 focus:ring-emerald-600" />
+                          <button
+                            key={subarea}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={tempSelection.has(subarea)}
+                            onClick={() => toggleTempSelection(subarea)}
+                            className={classNames(
+                              "flex items-center gap-2 p-3 rounded-md cursor-pointer transition text-left focus:outline-none focus:ring-2 focus:ring-emerald-500",
+                              tempSelection.has(subarea)
+                                ? "bg-slate-700 ring-2 ring-emerald-500"
+                                : "bg-slate-800 hover:bg-slate-700"
+                            )}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={classNames(
+                                "w-4 h-4 rounded border grid place-items-center text-[11px] font-bold flex-shrink-0",
+                                tempSelection.has(subarea)
+                                  ? "bg-emerald-500 border-emerald-400 text-slate-950"
+                                  : "bg-slate-700 border-slate-600"
+                              )}
+                            >
+                              {tempSelection.has(subarea) ? "✓" : ""}
+                            </span>
                             <span className="text-sm">{subarea}</span>
-                          </label>
+                          </button>
                         ))}
                       </div>
                     );
